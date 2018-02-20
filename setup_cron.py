@@ -5,12 +5,26 @@ import subprocess
 import shlex
 import os
 
-CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-STARTUP_FILE = os.path.join(CURRENT_FILE_DIR, "check_status.py")
-EXECUTION_CMD = 'python {0}'.format(STARTUP_FILE)
+# Checking the length of the argv provided by the user to esnure we do a cron expression 
+# and a file/sript which needs to be executed for this script
+if (len(sys.argv) != 3):
+    print "The arguments needed are a absolute file path and a cron expression, for example ./setup_cron.py /home/user/some.sh \"3 0 * * *\" "
+    exit(1)
 
-# Executes at 3 in the morning.
-CRON_VALUE = '{0} {1}'.format("0 3 * * *", EXECUTION_CMD)
+EXECUTION_CMD = sys.argv[1]
+CRON_EXPRESSION = sys.argv[2]
+
+print "Command given to store in crontab is: ", str(CRON_EXPRESSION), str(EXECUTION_CMD)
+
+# Ask whether the user is ok with the expression to be added under crontab
+option = raw_input("Is the provided command valid and can be added to crontab (y/n) ?")
+if (option == 'y'):
+    print "Adding the expression to crontab"
+else:
+    print "Received option other than 'y', so terminating the script"
+    exit(2)
+
+
 
 # Store the system PATH as a key value in a string format
 # So that the crontab knows the "python" lives in the PATH defined. 
@@ -19,6 +33,9 @@ PATH_VALUE = 'PATH={0}'.format(os.environ.get("PATH", ''))
 # LD_LIBRARY_PATH is used by your program to search for directories containing the 
 # libraries after it has been successfully compiled and linked.
 LD_LIBRARY_PATH = "LD_LIBRARY_PATH={0}".format(os.environ.get("LD_LIBRARY_PATH")) if os.environ.get("LD_LIBRARY_PATH") else ''
+
+# This value would be added to the crontab
+CRON_VALUE = '{0} {1}'.format(CRON_EXPRESSION, EXECUTION_CMD)
 
 print "The cron job to be created is: {0}.".format(CRON_VALUE)
 
@@ -34,7 +51,7 @@ proc_1 = subprocess.Popen(shlex.split(command_1), stdout=subprocess.PIPE,  stder
 out, err = proc_1.communicate()
 
 if out is not "":
-    new_value = [item for item in out.split("\n") if not EXECUTION_CMD in item and item.strip() != "" and 
+    new_value = [item for item in out.split("\n") if item.strip() != "" and CRON_VALUE != item.strip() and 
                               not ("PATH" in item or "LD_LIBRARY_PATH" in item)]
     
     new_value.insert(0, LD_LIBRARY_PATH)  # First add the LD_LIBRARY_PATH ensuring its the second command after PATH
